@@ -1,21 +1,21 @@
 package com.deflatedpickle.bow
 
-import com.sun.jna.Native
 import com.sun.jna.Pointer
 import com.sun.jna.platform.win32.User32
 import com.sun.jna.platform.win32.WinDef
 import org.eclipse.swt.SWT
+import org.eclipse.swt.custom.ScrolledComposite
+import org.eclipse.swt.graphics.Color
 import org.eclipse.swt.graphics.Font
-import org.eclipse.swt.internal.win32.*
+import org.eclipse.swt.internal.win32.NONCLIENTMETRICSW
+import org.eclipse.swt.internal.win32.OS
+import org.eclipse.swt.internal.win32.SCROLLINFO
 import org.eclipse.swt.layout.GridData
 import org.eclipse.swt.layout.GridLayout
 import org.eclipse.swt.widgets.*
 import org.eclipse.swt.widgets.List
-import org.eclipse.jface.util.Geometry.setSize
-import org.eclipse.swt.widgets.CoolItem
 
-
-
+// TODO: Return Notepad widgets back to Notepad when the JVM closes
 class BetterNotepad(parent: WinDef.HWND, val edit: WinDef.HWND?, val statusBar: WinDef.HWND?) : Shell(Display.getDefault(), SWT.POP_UP or SWT.ON_TOP) {
     val editPointer: Long
     val win32Font: Long
@@ -54,6 +54,12 @@ class BetterNotepad(parent: WinDef.HWND, val edit: WinDef.HWND?, val statusBar: 
         shell.layout()
         shell.open()
 
+        var selectedLine = -1
+
+        val scrollInfo = SCROLLINFO()
+        scrollInfo.cbSize = OS.SCROLLINFO_sizeof()
+        scrollInfo.fMask = OS.SIF_ALL
+
         while (!shell.isDisposed) {
             // Update the line numbers
             val selection = OS.SendMessage(editPointer, OS.EM_GETSEL, 0, 0)
@@ -61,6 +67,7 @@ class BetterNotepad(parent: WinDef.HWND, val edit: WinDef.HWND?, val statusBar: 
             val tempEnd = OS.HIWORD(selection).toLong()
 
             if (tempStart != selectStart) {
+                // TODO: Probably don't delete all and re-add all line numbers
                 val lineCount = OS.SendMessage(editPointer, OS.EM_GETLINECOUNT, 0, 0).toInt()
                 list.removeAll()
                 for (i in 1..lineCount) {
@@ -70,16 +77,19 @@ class BetterNotepad(parent: WinDef.HWND, val edit: WinDef.HWND?, val statusBar: 
             selectStart = tempStart
             selectEnd = tempEnd
 
-            // Scroll the line numbers
-            val scrollInfo = SCROLLINFO()
-            scrollInfo.cbSize = OS.SCROLLINFO_sizeof()
-            scrollInfo.fMask = OS.SIF_POS
+            // Selects the current line
+            val tempLine = OS.SendMessage(editPointer, OS.EM_LINEFROMCHAR, -1, 0).toInt()
+            if (tempLine != selectedLine) {
+                list.select(tempLine)
+            }
+            selectedLine = tempLine
 
+            // Scroll the line numbers
             // TODO: The line numbers should scroll with the Edit widget
-            // FIXME: Only the scrollbar moves, the list it's connected to doesn't
             OS.GetScrollInfo(editPointer, OS.SB_VERT, scrollInfo)
+            // println("${scrollInfo.nPos} ${scrollInfo.nMin}, ${scrollInfo.nMax}, ${scrollInfo.nPage}, ${scrollInfo.nTrackPos}")
             OS.SetScrollInfo(list.handle, OS.SB_VERT, scrollInfo, true)
-            // println("${scrollInfo.nPos} ${scrollInfo.nMin}, ${scrollInfo.nMax}, ${scrollInfo.nTrackPos}")
+            // OS.InvalidateRect(list.handle, null, false)
 
             if (!display.readAndDispatch()) {
                 display.sleep()
@@ -130,15 +140,14 @@ class BetterNotepad(parent: WinDef.HWND, val edit: WinDef.HWND?, val statusBar: 
     fun createLineNumbers(): List {
         return List(shell, SWT.BORDER or SWT.V_SCROLL).apply {
             font = swtFont
-            layoutData = GridData(GridData.BEGINNING, GridData.FILL, false, true).apply {
-                widthHint = 20
+            layoutData = GridData(GridData.FILL, GridData.FILL, false, true).apply {
+                widthHint = 24
             }
 
             addListener(SWT.Selection) {
-                // TODO: Clicking on a number should select that line
-                val index = this.selectionIndex.toLong()
-                // OS.SetFocus(editPointer)
-                // OS.SendMessage(editPointer, OS.EM_SETSEL, index, index)
+                val index = OS.SendMessage(editPointer, OS.EM_LINEINDEX, this.selectionIndex.toLong(), 0)
+                OS.SetFocus(editPointer)
+                OS.SendMessage(editPointer, OS.EM_SETSEL, index, index)
             }
         }
     }
@@ -156,7 +165,7 @@ class BetterNotepad(parent: WinDef.HWND, val edit: WinDef.HWND?, val statusBar: 
     fun captureStatusBar() {
         // Takes a hold of the StatusBar widget and puts it in the grid
         val statusBarComposite = Composite(shell, SWT.EMBEDDED).apply {
-            layoutData = GridData(GridData.FILL, GridData.END, true, false, 2, 0).apply {
+            layoutData = GridData(GridData.FILL, GridData.FILL, true, false, 2, 0).apply {
                 heightHint = 22
             }
         }
