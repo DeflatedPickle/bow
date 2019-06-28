@@ -28,6 +28,8 @@ class BetterNotepad(parent: WinDef.HWND, val edit: WinDef.HWND?, val statusBar: 
     val tabFolder: TabFolder
     // val closeIcon: Image
 
+    lateinit var newTabButton: Button
+
     init {
         Runtime.getRuntime().addShutdownHook(object : Thread() {
             override fun run() {
@@ -75,26 +77,36 @@ class BetterNotepad(parent: WinDef.HWND, val edit: WinDef.HWND?, val statusBar: 
             layoutData = GridData(GridData.FILL, GridData.FILL, true, true)
 
             addListener(SWT.Selection) {
-                if (this.selection[0].text == "+") {
-                    this.selection[0].dispose()
-                    newTab()
-                    this.setSelection(this.selectionIndex + 1)
-                    createAddTab()
-                }
-                else {
-                    if (this.selection[0].control != null) {
-                        val currentText = this.selection[0].control as Composite
-                        currentText.children[1].setFocus()
-                    }
+                if (this.selection[0].control != null) {
+                    val currentText = this.selection[0].control as Composite
+                    currentText.children[1].setFocus()
                 }
             }
         }
         tabFolder.pack()
 
         newTab()
-
-        createAddTab()
         tabFolder.setSelection(0)
+
+        newTabButton = Button(shell, SWT.PUSH).apply {
+            text = "+"
+            layoutData = GridData().apply { exclude = true }
+
+            addListener(SWT.Selection) {
+                newTab()
+                tabFolder.setSelection(tabFolder.selectionIndex + 1)
+
+                val lastTab = tabFolder.getItem(tabFolder.itemCount - 1)
+                this.setLocation(lastTab.bounds.x + lastTab.bounds.width + 1, lastTab.bounds.y + lastTab.bounds.height + 5)
+                (tabFolder.selection[0].control as NotepadTab).text.setFocus()
+            }
+        }
+        val lastTab = tabFolder.getItem(tabFolder.itemCount - 1)
+        newTabButton.setLocation(lastTab.bounds.x + lastTab.bounds.width + 1, lastTab.bounds.y + lastTab.bounds.height + 5)
+        (tabFolder.selection[0].control as NotepadTab).text.setFocus()
+
+        newTabButton.pack()
+        newTabButton.moveAbove(tabFolder)
 
         shell.layout()
         shell.open()
@@ -126,12 +138,6 @@ class BetterNotepad(parent: WinDef.HWND, val edit: WinDef.HWND?, val statusBar: 
             }
         }
         return tabItem
-    }
-
-    fun createAddTab() {
-        TabItem(tabFolder, SWT.CLOSE).apply {
-            text = "+"
-        }
     }
 
     fun createCoolbar() {
