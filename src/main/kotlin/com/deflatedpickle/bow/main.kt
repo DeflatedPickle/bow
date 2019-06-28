@@ -1,5 +1,6 @@
 package com.deflatedpickle.bow
 
+import com.deflatedpickle.bow.notepad.BetterNotepad
 import com.sun.jna.Pointer
 import com.sun.jna.platform.win32.User32
 import com.sun.jna.platform.win32.WinDef
