@@ -1,5 +1,6 @@
 package com.deflatedpickle.bow.notepad
 
+import com.deflatedpickle.bow.EnhancedText
 import com.deflatedpickle.bow.User32Extended
 import com.sun.jna.Pointer
 import com.sun.jna.platform.win32.User32
@@ -15,6 +16,7 @@ import org.eclipse.swt.layout.GridData
 import org.eclipse.swt.layout.GridLayout
 import org.eclipse.swt.widgets.*
 import org.eclipse.swt.widgets.List
+import java.util.concurrent.atomic.AtomicReference
 
 // TODO: Add a built-in terminal and run buttons
 // TODO: Add a history pane
@@ -29,6 +31,7 @@ class BetterNotepad(parent: WinDef.HWND, val edit: WinDef.HWND?, val statusBar: 
     // val closeIcon: Image
 
     lateinit var newTabButton: Button
+    val currentTextWidget: AtomicReference<EnhancedText> = AtomicReference()
 
     init {
         Runtime.getRuntime().addShutdownHook(object : Thread() {
@@ -78,15 +81,13 @@ class BetterNotepad(parent: WinDef.HWND, val edit: WinDef.HWND?, val statusBar: 
 
             addListener(SWT.Selection) {
                 if (this.selection[0].control != null) {
-                    val currentText = this.selection[0].control as Composite
-                    currentText.children[1].setFocus()
+                    val currentTab = this.selection[0].control as Composite
+                    currentTextWidget.set(currentTab.children[1] as EnhancedText)
+                    currentTextWidget.get().setFocus()
                 }
             }
         }
         tabFolder.pack()
-
-        newTab()
-        tabFolder.setSelection(0)
 
         newTabButton = Button(shell, SWT.PUSH).apply {
             text = "+"
@@ -94,16 +95,16 @@ class BetterNotepad(parent: WinDef.HWND, val edit: WinDef.HWND?, val statusBar: 
 
             addListener(SWT.Selection) {
                 newTab()
-                tabFolder.setSelection(tabFolder.selectionIndex + 1)
-
-                val lastTab = tabFolder.getItem(tabFolder.itemCount - 1)
-                this.setLocation(lastTab.bounds.x + lastTab.bounds.width + 1, lastTab.bounds.y + lastTab.bounds.height + 5)
-                (tabFolder.selection[0].control as NotepadTab).text.setFocus()
             }
         }
+
+        newTab()
+        tabFolder.setSelection(0)
+
         val lastTab = tabFolder.getItem(tabFolder.itemCount - 1)
         newTabButton.setLocation(lastTab.bounds.x + lastTab.bounds.width + 1, lastTab.bounds.y + lastTab.bounds.height + 5)
-        (tabFolder.selection[0].control as NotepadTab).text.setFocus()
+        currentTextWidget.set((tabFolder.selection[0].control as NotepadTab).text as EnhancedText)
+        currentTextWidget.get().setFocus()
 
         newTabButton.pack()
         newTabButton.moveAbove(tabFolder)
@@ -123,6 +124,7 @@ class BetterNotepad(parent: WinDef.HWND, val edit: WinDef.HWND?, val statusBar: 
     fun newTab(): TabItem {
         val tabItem = TabItem(tabFolder, SWT.NONE).apply {
             text = "New ${tabFolder.itemCount}"
+            // image = Image(display, display.getSystemImage(SWT.ICON_ERROR).imageData.scaledTo(16, 16))
 
             // TODO: Add a paint listener to draw a close button
             // FIXME: This close button draws under the tab, figure out how to draw it on-top
@@ -132,6 +134,14 @@ class BetterNotepad(parent: WinDef.HWND, val edit: WinDef.HWND?, val statusBar: 
 
             control = NotepadTab(tabFolder)
         }
+
+        tabFolder.setSelection(tabFolder.selectionIndex + 1)
+
+        val lastTab = tabFolder.getItem(tabFolder.itemCount - 1)
+        newTabButton.setLocation(lastTab.bounds.x + lastTab.bounds.width + 1, lastTab.bounds.y + lastTab.bounds.height + 5)
+        currentTextWidget.set((tabFolder.selection[0].control as NotepadTab).text as EnhancedText)
+        currentTextWidget.get().setFocus()
+
         return tabItem
     }
 
@@ -146,7 +156,7 @@ class BetterNotepad(parent: WinDef.HWND, val edit: WinDef.HWND?, val statusBar: 
                     ToolItem(this, SWT.PUSH).apply {
                         text = "New"
                         addListener(SWT.Selection) {
-                            User32Extended.INSTANCE.SetWindowText(edit, "")
+                            newTab()
                         }
                     }
                 }.also {
@@ -160,19 +170,19 @@ class BetterNotepad(parent: WinDef.HWND, val edit: WinDef.HWND?, val statusBar: 
                     ToolItem(this, SWT.PUSH).apply {
                         text = "Cut"
                         addListener(SWT.Selection) {
-                            OS.SendMessage(editPointer, OS.WM_CUT, 0, 0)
+                            currentTextWidget.get().cut()
                         }
                     }
                     ToolItem(this, SWT.PUSH).apply {
                         text = "Copy"
                         addListener(SWT.Selection) {
-                            OS.SendMessage(editPointer, OS.WM_COPY, 0, 0)
+                            currentTextWidget.get().copy()
                         }
                     }
                     ToolItem(this, SWT.PUSH).apply {
                         text = "Paste"
                         addListener(SWT.Selection) {
-                            OS.SendMessage(editPointer, OS.WM_PASTE, 0, 0)
+                            currentTextWidget.get().paste()
                         }
                     }
                 }.also {
@@ -186,20 +196,15 @@ class BetterNotepad(parent: WinDef.HWND, val edit: WinDef.HWND?, val statusBar: 
                     ToolItem(this, SWT.PUSH).apply {
                         text = "Undo"
                         addListener(SWT.Selection) {
-                            if (OS.SendMessage(editPointer, OS.EM_CANUNDO, 0, 0).toInt() != 0) {
-                                OS.SendMessage(editPointer, OS.WM_UNDO, 0, 0)
-                            }
+                            currentTextWidget.get().undo()
                         }
                     }
-                    // TODO: Ditch the Notepad Edit for a StyledText, as only Rich Edits have a re-do
-                    // ToolItem(this, SWT.PUSH).apply {
-                    //     text = "Redo"
-                    //     addListener(SWT.Selection) {
-                    //         if (OS.SendMessage(editPointer, OS.EM_CANUNDO, 0, 0).toInt() != 0) {
-                    //             OS.SendMessage(editPointer, OS.WM_UNDO, 0, 0)
-                    //         }
-                    //     }
-                    // }
+                    ToolItem(this, SWT.PUSH).apply {
+                        text = "Redo"
+                        addListener(SWT.Selection) {
+                            currentTextWidget.get().redo()
+                        }
+                    }
                 }.also {
                     control = it
                     calcSize(this)

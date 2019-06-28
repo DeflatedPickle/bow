@@ -1,5 +1,6 @@
 package com.deflatedpickle.bow.notepad
 
+import com.deflatedpickle.bow.EnhancedText
 import org.eclipse.swt.SWT
 import org.eclipse.swt.custom.StyledText
 import org.eclipse.swt.layout.GridData
@@ -32,7 +33,7 @@ class NotepadTab(parent: Composite) : Composite(parent, SWT.NONE) {
             }
         }
 
-        text = StyledText(this, SWT.BORDER or SWT.MULTI or SWT.H_SCROLL or SWT.V_SCROLL).apply {
+        text = EnhancedText(this, SWT.BORDER or SWT.MULTI or SWT.H_SCROLL or SWT.V_SCROLL).apply {
             layoutData = GridData(GridData.FILL, GridData.FILL, true, true).apply {
                 this.verticalSpan = 2
             }
