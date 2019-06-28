@@ -3,6 +3,7 @@ package com.deflatedpickle.bow.notepad
 import org.eclipse.swt.SWT
 import org.eclipse.swt.custom.StyledText
 import org.eclipse.swt.layout.GridData
+import org.eclipse.swt.layout.GridLayout
 import org.eclipse.swt.widgets.Composite
 import org.eclipse.swt.widgets.List
 
@@ -13,10 +14,14 @@ class NotepadTab(parent: Composite) : Composite(parent, SWT.NONE) {
     var cachedLines = -1
 
     init {
-        // TODO: The widget needs to be slightly less tall than the text, as the last line matches up with the text's horizontal scrollbar
+        this.layout = GridLayout(2, false).apply {
+            marginWidth = 0
+            marginHeight = 0
+        }
+
         list = List(this, SWT.BORDER).apply {
             layoutData = GridData(GridData.FILL, GridData.FILL, false, true).apply {
-                widthHint = 24
+                this.widthHint = 26
             }
 
             addListener(SWT.Selection) {
@@ -28,7 +33,9 @@ class NotepadTab(parent: Composite) : Composite(parent, SWT.NONE) {
         }
 
         text = StyledText(this, SWT.BORDER or SWT.MULTI or SWT.H_SCROLL or SWT.V_SCROLL).apply {
-            layoutData = GridData(GridData.FILL, GridData.FILL, true, true)
+            layoutData = GridData(GridData.FILL, GridData.FILL, true, true).apply {
+                this.verticalSpan = 2
+            }
             font = list.font
 
             addListener(SWT.Modify) {
@@ -53,6 +60,13 @@ class NotepadTab(parent: Composite) : Composite(parent, SWT.NONE) {
             }
 
             insert("")
+        }
+
+        Composite(this, SWT.NONE).apply {
+            layoutData = GridData().apply {
+                this.widthHint = 26
+                this.heightHint = text.verticalBar.thumbTrackBounds.width - (this@NotepadTab.layout as GridLayout).verticalSpacing
+            }
         }
     }
 }

@@ -130,12 +130,7 @@ class BetterNotepad(parent: WinDef.HWND, val edit: WinDef.HWND?, val statusBar: 
             //     it.gc.drawImage(Image(display, display.getSystemImage(SWT.ICON_ERROR).imageData.scaledTo(32, 32)), 5, 5)
             // }
 
-            control = NotepadTab(tabFolder).apply {
-                layout = GridLayout(2, false).apply {
-                    marginWidth = 0
-                    marginHeight = 0
-                }
-            }
+            control = NotepadTab(tabFolder)
         }
         return tabItem
     }
